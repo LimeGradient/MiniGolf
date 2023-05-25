@@ -7,6 +7,7 @@
 #include "draw.h"
 #include "log.h"
 #include "cleanup.h"
+#include "ball.h"
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
@@ -18,6 +19,14 @@ SDL_Renderer* ren;
 
 bool keys[322];
 const std::string path = "sprites/";
+
+int mouseX, mouseY;
+SDL_Rect circleRect;
+std::string circle_path;
+
+double deltaTime;
+
+void input();
 
 void LogSDLError(std::ostream &os, const std::string &msg) {
     os << msg << " error: " << SDL_GetError() << std::endl;
@@ -54,7 +63,7 @@ int main() {
     }
 
     bool quit = false;
-    std::string circle_path = "sprites/circle.png";
+    circle_path = "sprites/circle.png";
     SDL_Texture* circle = loadTexture(circle_path, ren);
     if (circle == nullptr) {
         LogSDLError(std::cout, "CircleError:");
@@ -74,10 +83,23 @@ int main() {
 
     SDL_RenderPresent(ren);
 
-    SDL_Rect circleRect = {x, y, iW, iH};
+    circleRect.x = x;
+    circleRect.y = y;
+    circleRect.w = iW;
+    circleRect.h = iH;
 
+    MousePos start, end;
+
+    Uint64 now = SDL_GetPerformanceCounter();
+    Uint64 last = 0;
+    deltaTime = 0;
     while (!quit) {
+        last = now;
+        now = SDL_GetPerformanceCounter();
+
+        deltaTime = (double)((now - last)*1000 / (double)SDL_GetPerformanceFrequency());
         SDL_Event e;
+        int leftState = 0;
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
                 case SDL_QUIT:
@@ -85,29 +107,40 @@ int main() {
                     break;
                 case SDL_KEYDOWN:
                     keys[e.key.keysym.sym] = true;
-                    // if (keys[SDLK_d]) {
-                    //     circleRect.x += 10;
-                    //     SDL_RenderClear(ren);
-                    //     SDL_RenderCopy(ren, loadTexture(circle_path, ren), nullptr, &circleRect);
-                    //     SDL_RenderPresent(ren);
-                    // }
-                    // if (keys[SDLK_a]) {
-                    //     circleRect.x -= 10;
-                    //     SDL_RenderClear(ren);
-                    //     SDL_RenderCopy(ren, loadTexture(circle_path, ren), nullptr, &circleRect);
-                    //     SDL_RenderPresent(ren);
-                    // }
                     break;
                 case SDL_KEYUP:
                     keys[e.key.keysym.sym] = false;
                     break;
+                case SDL_MOUSEBUTTONDOWN:
+                    SDL_GetGlobalMouseState(&mouseX, &mouseY);
+                    start.x = mouseX; start.y = mouseY;
+                    break;
+                case SDL_MOUSEBUTTONUP:
+                    SDL_GetGlobalMouseState(&mouseX, &mouseY);
+                    end.x = mouseX; end.y = mouseY;
+                    std::cout << calculateBallForce(start, end) << std::endl;
+                    break;
             }
-
         }
-
+        input();
     }
 
     cleanup(circle, ren, win);
     IMG_Quit();
     SDL_Quit();
+}
+
+void input() {
+    if (keys[SDLK_d]) {
+        circleRect.x += 1 * deltaTime;
+        SDL_RenderClear(ren);
+        SDL_RenderCopy(ren, loadTexture(circle_path, ren), nullptr, &circleRect);
+        SDL_RenderPresent(ren);
+    }
+    if (keys[SDLK_a]) {
+        circleRect.x -= 1 * deltaTime;
+        SDL_RenderClear(ren);
+        SDL_RenderCopy(ren, loadTexture(circle_path, ren), nullptr, &circleRect);
+        SDL_RenderPresent(ren);
+    }
 }
